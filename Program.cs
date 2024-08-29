@@ -128,6 +128,9 @@ builder.Services.AddDbContextPool<IpDeputyDbContext>(options =>
 // Add JwtService
 builder.Services.AddSingleton<JwtService>();
 
+// Configure Automapper
+builder.Services.AddAutoMapper(typeof(AppMappingService));
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
