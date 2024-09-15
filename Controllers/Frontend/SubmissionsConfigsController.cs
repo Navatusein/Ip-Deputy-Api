@@ -112,6 +112,8 @@ namespace IpDeputyApi.Controllers.Frontend
                })).ToList(), cancellationToken
             );
 
+            await _context.SaveChangesAsync(cancellationToken);
+
             dto.Id = model.Id;
 
             return StatusCode(StatusCodes.Status201Created, dto);
