@@ -528,3 +528,8 @@ FodyWeavers.xsd
 # Ignore all local history of files
 .history
 .ionide
+
+# Database
+*.db
+*.db-shm
+*.db-wal
