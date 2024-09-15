@@ -38,9 +38,12 @@ namespace IpDeputyApi.Service
             CreateMap<Telegram, StudentSettingsDto>()
                 .ReverseMap()
                 .ForMember(x => x.Id, opt => opt.MapFrom(src => 0));
+
             CreateMap<Student, StudentInformationDto>()
                 .ForMember(x => x.Subgroup, opt => opt.MapFrom(src => src.Subgroup!.Name));
+
             CreateMap<Teacher, TeacherInformationDto>();
+
             CreateMap<Link, LinkInformationDto>();
         }
     }

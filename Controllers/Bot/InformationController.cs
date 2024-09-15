@@ -31,12 +31,12 @@ public class InformationController : ControllerBase
     [Authorize(AuthenticationSchemes = BotAuthenticationSchemeOptions.DefaultSchemeName)]
     public async Task<ActionResult<IEnumerable<StudentInformationDto>>> GetStudentsInformationAsync(CancellationToken cancellationToken)
     {
-        var studentInformationDtos = await _context.Students
+        var students = await _context.Students
             .OrderBy(x => x.Index)
             .Select(x => _mapper.Map<StudentInformationDto>(x))
             .ToListAsync(cancellationToken);
 
-        return StatusCode(StatusCodes.Status200OK, studentInformationDtos);
+        return StatusCode(StatusCodes.Status200OK, students);
     }
 
     [HttpGet]
@@ -49,7 +49,7 @@ public class InformationController : ControllerBase
             .Select(x => _mapper.Map<TeacherInformationDto>(x))
             .ToListAsync(cancellationToken);
 
-        return StatusCode(StatusCodes.Status200OK, cancellationToken);
+        return StatusCode(StatusCodes.Status200OK, teachers);
     }
 
     [HttpGet]
