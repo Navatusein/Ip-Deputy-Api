@@ -1,15 +1,13 @@
 ﻿using IpDeputyApi.Dtos;
 using IpDeputyApi.Exceptions;
 using Serilog;
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using System.Text.Json;
 
 namespace IpDeputyApi.Middleware
 {
     public class ExceptionHandlingMiddleware
     {
-        private static Serilog.ILogger Logger => Serilog.Log.ForContext<ExceptionHandlingMiddleware>();
+        private static Serilog.ILogger Logger => Log.ForContext<ExceptionHandlingMiddleware>();
         private readonly RequestDelegate _next;
 
         public ExceptionHandlingMiddleware(RequestDelegate next)
@@ -65,7 +63,7 @@ namespace IpDeputyApi.Middleware
                     break;
             }
 
-            await context.Response.WriteAsync(JsonSerializer.Serialize(errorDto));
+            await context.Response.WriteAsJsonAsync(errorDto);
         }
     }
 }

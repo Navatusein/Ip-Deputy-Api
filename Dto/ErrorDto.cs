@@ -21,9 +21,9 @@ namespace IpDeputyApi.Dtos
 
         public string Message { get; set; } = null!;
 
-        public object? Data { get; set; }
-
         public string Code { get; set; } = null!;
+
+        public object? Data { get; set; }
     }
 }
 
