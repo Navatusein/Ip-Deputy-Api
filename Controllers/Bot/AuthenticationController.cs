@@ -10,7 +10,7 @@ using IpDeputyApi.Exceptions;
 
 namespace IpDeputyApi.Controllers.Bot
 {
-    [Tags("Bot Authentication Controller")]
+    [Tags("Bot:Authentication Controller")]
     [Route("bot/authentication")]
     [ApiController]
     public class AuthenticationController : ControllerBase
@@ -25,9 +25,9 @@ namespace IpDeputyApi.Controllers.Bot
             _mapper = mapper;
         }
 
-        [Authorize(AuthenticationSchemes = BotAuthenticationSchemeOptions.DefaultSchemeName)]
-        [Route("authorize")]
         [HttpPost]
+        [Route("authorize")]
+        [Authorize(AuthenticationSchemes = BotAuthenticationSchemeOptions.DefaultSchemeName)]
         public async Task<ActionResult<string>> Authorize([FromBody] StudentContactDto contactDto)
         {
             var student = await _context.Students.FirstOrDefaultAsync(x => x.TelegramPhone == contactDto.Phone);
