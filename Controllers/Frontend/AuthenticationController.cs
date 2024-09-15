@@ -67,7 +67,7 @@ namespace IpDeputyApi.Controllers.Frontend
 
             var user = JsonConvert.DeserializeObject<Dictionary<string, string>>(data["user"]!);
 
-            var telegram = await _context.Telegrams.FirstOrDefaultAsync(x => x.TelegramId == uint.Parse(user!["id"]), cancellationToken);
+            var telegram = await _context.Telegrams.FirstOrDefaultAsync(x => x.TelegramId == ulong.Parse(user!["id"]), cancellationToken);
 
             if (telegram == null)
                 throw new HttpException("Student not found", StatusCodes.Status404NotFound);
