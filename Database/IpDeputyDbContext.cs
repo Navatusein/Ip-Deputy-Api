@@ -52,14 +52,14 @@ namespace IpDeputyApi.Database
             );
 
             modelBuilder.Entity<SubjectType>().HasData(
-                new SubjectType { Id = 1, Name = "Лабораторне", ShortName = "Лаб." },
-                new SubjectType { Id = 2, Name = "Практика", ShortName = "Пр." },
-                new SubjectType { Id = 3, Name = "Лекція", ShortName = "Лек." },
-                new SubjectType { Id = 4, Name = "Семінар", ShortName = "Сем." },
-                new SubjectType { Id = 5, Name = "Консультація", ShortName = "Конс." },
-                new SubjectType { Id = 6, Name = "Залік", ShortName = "Зал." },
-                new SubjectType { Id = 7, Name = "Екзамен", ShortName = "Екз." },
-                new SubjectType { Id = 8, Name = "Додаткова", ShortName = "Дод." }
+                new SubjectType { Id = (int)Models.SubjectTypes.Laboratory, Name = "Лабораторне", ShortName = "Лаб." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Practice, Name = "Практика", ShortName = "Пр." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Lecture, Name = "Лекція", ShortName = "Лек." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Seminar, Name = "Семінар", ShortName = "Сем." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Consultation, Name = "Консультація", ShortName = "Конс." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Credit, Name = "Залік", ShortName = "Зал." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Exam, Name = "Екзамен", ShortName = "Екз." },
+                new SubjectType { Id = (int)Models.SubjectTypes.Extra, Name = "Додаткова", ShortName = "Дод." }
             );
         }
     }

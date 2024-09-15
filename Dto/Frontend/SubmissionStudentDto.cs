@@ -9,5 +9,6 @@ namespace IpDeputyApi.Dto.Frontend
         public int StudentId { get; set; }
         public int SubmissionsConfigId { get; set; }
         public PreferredPosition PreferredPosition { get; set; }
+        public DateOnly SubmittedAt { get; set; }
     }
 }

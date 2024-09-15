@@ -48,14 +48,15 @@ namespace IpDeputyApi.Service
             return false;
         }
 
-        public string GenerateAuthorizationToken(int studentId, int minutes = 60)
+        public string GenerateAuthorizationToken(int studentId, bool refresh, int minutes = 60)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["AuthorizeJWT:Key"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
             {
-                new Claim("StudentId", studentId.ToString())
+                new Claim("StudentId", studentId.ToString()),
+                new Claim("Refresh", refresh ? "true" : "false")
             };
 
             var token = new JwtSecurityToken(

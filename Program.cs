@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using SwaggerHierarchySupport;
 using Swashbuckle.AspNetCore.Filters;
+using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -111,6 +113,9 @@ builder.Services.AddDbContextPool<IpDeputyDbContext>(options =>
 
     switch (builder.Configuration["Database:Provider"])
     {
+        case "Sqlite":
+            options.UseSqlite(builder.Configuration["Database:ConnectionString"]);
+            break;
         case "MySql":
             options.UseMySql(builder.Configuration["Database:ConnectionString"], new MySqlServerVersion(new Version(builder.Configuration["Database:Version"]!)));
             break;
@@ -131,7 +136,14 @@ builder.Services.AddSingleton<JwtService>();
 // Configure Automapper
 builder.Services.AddAutoMapper(typeof(AppMappingService));
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+});
+
 var app = builder.Build();
+
+app.UsePathBase("/api");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -151,6 +163,7 @@ if (app.Environment.IsDevelopment())
 
     app.UseSwaggerUI(option =>
     {
+        option.AddHierarchySupport();
         option.DocumentTitle = "Ip Deputy Api";
     });
 }

@@ -17,12 +17,17 @@ namespace IpDeputyApi.Service
             CreateMap<CoupleDate, CoupleDateDto>().ReverseMap();
             CreateMap<CoupleTime, CoupleTimeDto>().ReverseMap();
             CreateMap<DayOfWeek, DayOfWeekDto>().ReverseMap();
-            CreateMap<Link, Link>().ReverseMap();
+            CreateMap<Link, LinkDto>().ReverseMap();
             CreateMap<Student, StudentDto>().ReverseMap();
             CreateMap<Subgroup, SubgroupDto>().ReverseMap();
             CreateMap<Subject, SubjectDto>().ReverseMap();
             CreateMap<SubjectType, SubjectTypeDto>().ReverseMap();
-            CreateMap<SubmissionsConfig, SubmissionsConfigDto>().ReverseMap();
+            CreateMap<SubmissionsConfig, SubmissionsConfigDto>()
+                .ForMember(x => x.SubmissionWorks, opt => opt.Ignore())
+                .ForMember(x => x.SubmissionStudents, opt => opt.Ignore())
+                .ReverseMap()
+                .ForMember(x => x.SubmissionWorks, opt => opt.Ignore())
+                .ForMember(x => x.SubmissionStudents, opt => opt.Ignore());
             CreateMap<SubmissionStudent, SubmissionStudentDto>().ReverseMap();
             CreateMap<SubmissionWork, SubmissionWorkDto>().ReverseMap();
             CreateMap<Teacher, TeacherDto>().ReverseMap();
