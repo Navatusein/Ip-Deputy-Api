@@ -32,6 +32,7 @@ public class InformationController : ControllerBase
     public async Task<ActionResult<IEnumerable<StudentInformationDto>>> GetStudentsInformationAsync(CancellationToken cancellationToken)
     {
         var students = await _context.Students
+            .Include(x => x.Subgroup)
             .OrderBy(x => x.Index)
             .Select(x => _mapper.Map<StudentInformationDto>(x))
             .ToListAsync(cancellationToken);
