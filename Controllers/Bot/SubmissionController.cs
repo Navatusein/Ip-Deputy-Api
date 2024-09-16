@@ -45,7 +45,8 @@ public class SubmissionController : ControllerBase
                 Subgroup = submissionsConfig.Subgroup?.Name,
                 ClearedAt = submissionsConfig.SubmissionStudents.OrderBy(x => x.Id).FirstOrDefault()?.SubmittedAt.ToString() ?? "",
                 Submissions = submissionsConfig.SubmissionStudents
-                    .OrderBy(x => x.PreferredPosition)
+                    .OrderBy(x => x.Id)
+                    .ThenBy(x => x.PreferredPosition)
                     .ThenBy(x => x.StudentId)
                     .ThenBy(x => x.SubmissionWork.Index)
                     .Select(x => new SubmissionDto() { Name = x.SubmissionWork.Name, Student = $"{x.Student.Surname} {x.Student.Name}" })
