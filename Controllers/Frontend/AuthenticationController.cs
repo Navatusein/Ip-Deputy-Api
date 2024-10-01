@@ -120,7 +120,7 @@ namespace IpDeputyApi.Controllers.Frontend
         {
             var refreshToken = Request.Cookies[CookieKey];
 
-            if (refreshToken == null || _jwtService.ValidateRefreshToken(refreshToken, userDto.StudentId))
+            if (refreshToken == null || !_jwtService.ValidateRefreshToken(refreshToken, userDto.StudentId))
                 throw new HttpException("Invalid refresh token", StatusCodes.Status400BadRequest);
 
             var student = await _context.Students.FirstOrDefaultAsync(x => x.Id == userDto.StudentId);
