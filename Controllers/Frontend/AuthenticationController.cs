@@ -120,8 +120,6 @@ namespace IpDeputyApi.Controllers.Frontend
         {
             var refreshToken = Request.Cookies[CookieKey];
 
-            Logger.Information("Token: {@refreshToken}", refreshToken);
-
             if (refreshToken == null || !_jwtService.ValidateRefreshToken(refreshToken, userDto.StudentId))
                 throw new HttpException("Invalid refresh token", StatusCodes.Status400BadRequest);
 
