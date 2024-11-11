@@ -34,6 +34,11 @@ public class SubmissionController : ControllerBase
     {
         var submissionsConfigs = await _context.SubmissionsConfigs.ToListAsync(cancellationToken);
 
+        var a = submissionsConfigs[0].SubmissionStudents
+                    .OrderBy(x => x.PreferredPosition)
+                    .GroupBy(x => x.StudentId)
+                    .Select(x => x.ToList().OrderBy(x => x.SubmissionWork.Index))
+                    .SelectMany(x => x);
 
         var dtos = submissionsConfigs.Select(submissionsConfig =>
         {
@@ -46,6 +51,9 @@ public class SubmissionController : ControllerBase
                 ClearedAt = submissionsConfig.SubmissionStudents.OrderBy(x => x.Id).FirstOrDefault()?.SubmittedAt.ToString() ?? "",
                 Submissions = submissionsConfig.SubmissionStudents
                     .OrderBy(x => x.PreferredPosition)
+                    .GroupBy(x => x.StudentId)
+                    .Select(x => x.ToList().OrderBy(x => x.SubmissionWork.Index))
+                    .SelectMany(x => x)
                     .Select(x => new SubmissionDto() { Name = x.SubmissionWork.Name, Student = $"{x.Student.Surname} {x.Student.Name}" })
             };
         })
