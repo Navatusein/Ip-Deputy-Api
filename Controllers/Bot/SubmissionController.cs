@@ -51,6 +51,7 @@ public class SubmissionController : ControllerBase
                 ClearedAt = submissionsConfig.SubmissionStudents.OrderBy(x => x.Id).FirstOrDefault()?.SubmittedAt.ToString() ?? "",
                 Submissions = submissionsConfig.SubmissionStudents
                     .OrderBy(x => x.PreferredPosition)
+                    .ThenBy(x => x.Id)
                     .GroupBy(x => x.StudentId)
                     .Select(x => x.ToList().OrderBy(x => x.SubmissionWork.Index))
                     .SelectMany(x => x)
