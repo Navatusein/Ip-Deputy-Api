@@ -10,7 +10,7 @@
         public int? SubgroupId { get; set; }
         public int TeacherId { get; set; }
         public DateOnly Date { get; set; }
-        public TimeOnly Time { get; set; }
+        public TimeOnly? Time { get; set; }
         public string? Cabinet { get; set; }
         public string? AdditionalInformation { get; set; }
         public string? Link { get; set; }
