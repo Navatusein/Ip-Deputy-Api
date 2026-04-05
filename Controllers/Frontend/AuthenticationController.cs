@@ -40,7 +40,9 @@ namespace IpDeputyApi.Controllers.Frontend
         [AllowAnonymous]
         public async Task<ActionResult<UserDto>> PostFrontendLoginAsync([FromRoute] string initData, CancellationToken cancellationToken)
         {
-            var queryParams = HttpUtility.ParseQueryString(initData);
+
+            var result = Encoding.UTF8.GetString(Convert.FromBase64String(initData));
+            var queryParams = HttpUtility.ParseQueryString(result);
 
             if(queryParams == null)
                 throw new HttpException("Not authorized student", StatusCodes.Status401Unauthorized);
