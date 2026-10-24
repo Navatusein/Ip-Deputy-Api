@@ -56,6 +56,13 @@ public static class DatabaseInitializer
         Logger.Warning("Initial administrator {Login} created", user.Login);
     }
 
+    private static Task<bool> TableExistsAsync(IpDeputyDbContext context, string tableName, CancellationToken cancellationToken)
+    {
+        return context.Database
+            .SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = {tableName}) AS \"Value\"")
+            .SingleAsync(cancellationToken);
+    }
+
     private static async Task BaselineExistingDatabaseAsync(IpDeputyDbContext context, CancellationToken cancellationToken)
     {
         if (!await context.Database.CanConnectAsync(cancellationToken))
@@ -63,21 +70,18 @@ public static class DatabaseInitializer
 
         var historyRepository = context.GetService<IHistoryRepository>();
 
-        if (await historyRepository.ExistsAsync(cancellationToken))
+        if (await TableExistsAsync(context, HistoryRepository.DefaultTableName, cancellationToken))
             return;
 
-        var tableExists = await context.Database
-            .SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'Students') AS \"Value\"")
-            .SingleAsync(cancellationToken);
+        await context.Database.ExecuteSqlRawAsync(historyRepository.GetCreateIfNotExistsScript(), cancellationToken);
 
-        if (!tableExists)
+        if (!await TableExistsAsync(context, "Students", cancellationToken))
             return;
 
         var baselineId = typeof(InitialCreate).GetCustomAttribute<MigrationAttribute>()!.Id;
 
         Logger.Warning("Existing database without migrations history detected, marking {MigrationId} as applied", baselineId);
 
-        await context.Database.ExecuteSqlRawAsync(historyRepository.GetCreateIfNotExistsScript(), cancellationToken);
         await context.Database.ExecuteSqlRawAsync(historyRepository.GetInsertScript(new HistoryRow(baselineId, ProductInfo.GetVersion())), cancellationToken);
     }
 }

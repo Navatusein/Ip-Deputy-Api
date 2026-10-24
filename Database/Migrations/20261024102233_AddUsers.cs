@@ -7,10 +7,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace IpDeputyApi.Database.Migrations
 {
-    /// <inheritdoc />
     public partial class AddUsers : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -56,7 +54,7 @@ namespace IpDeputyApi.Database.Migrations
                 INSERT INTO "Users" ("Login", "DisplayName", "StudentId", "PasswordHash", "LegacyPasswordSalt", "Permissions", "IsActive", "TokenVersion", "CreatedAt")
                 SELECT DISTINCT ON (lower(btrim(w."Login")))
                     left(lower(btrim(w."Login")), 64),
-                    left(COALESCE(NULLIF(btrim(concat_ws(' ', s."Surname", s."Name")), ''), btrim(w."Login")), 256),
+                    left(COALESCE(NULLIF(regexp_replace(btrim(concat_ws(' ', s."Surname", s."Name")), '\s+', ' ', 'g'), ''), btrim(w."Login")), 256),
                     w."StudentId",
                     w."PasswordHash",
                     w."PasswordSalt",
@@ -73,7 +71,6 @@ namespace IpDeputyApi.Database.Migrations
                 name: "WebAuthentications");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
