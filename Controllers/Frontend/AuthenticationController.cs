@@ -1,161 +1,124 @@
-﻿using IpDeputyApi.Authentication;
-using IpDeputyApi.Database;
-using IpDeputyApi.Database.Models;
-using IpDeputyApi.Dto.Frontend;
-using IpDeputyApi.Dtos;
-using IpDeputyApi.Exceptions;
-using IpDeputyApi.Service;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
-using System.Web;
+using System.Text.Json;
+using IpDeputyApi.Database;
+using IpDeputyApi.Exceptions;
+using IpDeputyApi.Options;
+using IpDeputyApi.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
-namespace IpDeputyApi.Controllers.Frontend
+namespace IpDeputyApi.Controllers.Frontend;
+
+public class LegacyLoginDto
 {
-    [Tags("Frontend:Authentication Controller")]
-    [Route("frontend/authentication")]
-    [ApiController]
-    public class AuthenticationController : ControllerBase
+    public string Login { get; set; } = null!;
+    public string Password { get; set; } = null!;
+}
+
+public class LegacyUserDto
+{
+    public int StudentId { get; set; }
+    public string UserName { get; set; } = null!;
+    public string JwtToken { get; set; } = null!;
+}
+
+[Tags("Frontend:Authentication Controller")]
+[Route("frontend/authentication")]
+[ApiController]
+public class AuthenticationController : ControllerBase
+{
+    private const string CookieKey = "RefreshToken";
+
+    private readonly IpDeputyDbContext _context;
+    private readonly JwtService _jwtService;
+    private readonly BotOptions _botOptions;
+
+    public AuthenticationController(IpDeputyDbContext context, JwtService jwtService, IOptions<BotOptions> botOptions)
     {
-        private const string CookieKey = "RefreshToken";
+        _context = context;
+        _jwtService = jwtService;
+        _botOptions = botOptions.Value;
+    }
 
-        private static Serilog.ILogger Logger => Serilog.Log.ForContext<AuthenticationController>();
-        private readonly IpDeputyDbContext _context;
-        private readonly JwtService _jwtService;
-        private readonly IConfiguration _config;
+    [HttpPost("login-bot/{initData}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LegacyUserDto>> PostFrontendLoginAsync([FromRoute] string initData, CancellationToken cancellationToken)
+    {
+        var data = QueryHelpers.ParseQuery(Encoding.UTF8.GetString(Convert.FromBase64String(initData)))
+            .ToDictionary(x => x.Key, x => x.Value.ToString());
 
-        public AuthenticationController(IpDeputyDbContext context, JwtService jwtService, IConfiguration config)
+        if (!data.TryGetValue("hash", out var hash))
+            throw new UnauthorizedException();
+
+        var checkString = string.Join("\n", data.Where(x => x.Key != "hash").OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => $"{x.Key}={x.Value}"));
+        var secretKey = HMACSHA256.HashData(Encoding.UTF8.GetBytes("WebAppData"), Encoding.UTF8.GetBytes(_botOptions.BotToken));
+        var signature = Convert.ToHexStringLower(HMACSHA256.HashData(secretKey, Encoding.UTF8.GetBytes(checkString)));
+
+        if (signature != hash)
+            throw new UnauthorizedException();
+
+        var userId = JsonDocument.Parse(data["user"]).RootElement.GetProperty("id").GetUInt64();
+        var telegram = await _context.Telegrams.Include(x => x.Student).FirstOrDefaultAsync(x => x.TelegramId == userId, cancellationToken)
+            ?? throw new NotFoundException("Студента не знайдено");
+
+        return Ok(new LegacyUserDto
         {
-            _context = context;
-            _jwtService = jwtService;
-            _config = config;
-        }
+            JwtToken = _jwtService.GenerateAuthorizationToken(telegram.StudentId, false),
+            StudentId = telegram.StudentId,
+            UserName = telegram.Student.Name
+        });
+    }
 
-        [HttpPost]
-        [Route("login-bot/{initData}")]
-        [AllowAnonymous]
-        public async Task<ActionResult<UserDto>> PostFrontendLoginAsync([FromRoute] string initData, CancellationToken cancellationToken)
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LegacyUserDto>> PostLoginAsync([FromBody] LegacyLoginDto loginDto, CancellationToken cancellationToken)
+    {
+        var login = loginDto.Login.ToLower();
+        var user = await _context.WebAuthentications.Include(x => x.Student).FirstOrDefaultAsync(x => x.Login == login, cancellationToken);
+
+        if (user == null || !LegacyPasswordHash.Verify(loginDto.Password, user.PasswordHash, user.PasswordSalt))
+            throw new HttpException("Невірний логін або пароль", StatusCodes.Status400BadRequest);
+
+        Response.Cookies.Append(CookieKey, _jwtService.GenerateRefreshToken(user.StudentId), CookieOptions());
+
+        return Ok(new LegacyUserDto
         {
+            JwtToken = _jwtService.GenerateAuthorizationToken(user.StudentId, true),
+            StudentId = user.StudentId,
+            UserName = user.Student.Name
+        });
+    }
 
-            var result = Encoding.UTF8.GetString(Convert.FromBase64String(initData));
-            var queryParams = HttpUtility.ParseQueryString(result);
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LegacyUserDto>> PostRefreshAsync([FromBody] LegacyUserDto userDto, CancellationToken cancellationToken)
+    {
+        var refreshToken = Request.Cookies[CookieKey];
 
-            if(queryParams == null)
-                throw new HttpException("Not authorized student", StatusCodes.Status401Unauthorized);
+        if (refreshToken == null || !_jwtService.ValidateRefreshToken(refreshToken, userDto.StudentId))
+            throw new UnauthorizedException("Недійсний токен оновлення");
 
-            var data = queryParams.AllKeys.ToDictionary(key => key!, key => queryParams[key]);
+        if (!await _context.WebAuthentications.AnyAsync(x => x.StudentId == userDto.StudentId, cancellationToken))
+            throw new UnauthorizedException("Недійсний токен оновлення");
 
+        userDto.JwtToken = _jwtService.GenerateAuthorizationToken(userDto.StudentId, true);
+        Response.Cookies.Append(CookieKey, _jwtService.GenerateRefreshToken(userDto.StudentId), CookieOptions());
 
-            var checkString = string.Join("\n", data
-                .Where(x => x.Key != "hash")
-                .OrderBy(x => x.Key)
-                .Select(x => $"{x.Key}={x.Value}")
-            );
+        return Ok(userDto);
+    }
 
-            var secretKey = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData"))
-                .ComputeHash(Encoding.UTF8.GetBytes(_config["BotToken"]!));
-
-            var signature = new HMACSHA256(secretKey)
-                .ComputeHash(Encoding.UTF8.GetBytes(checkString));
-
-            var hexSignature = BitConverter.ToString(signature).Replace("-", "").ToLower();
-
-            if (data["hash"] != hexSignature)
-                throw new HttpException("Not authorized student", StatusCodes.Status401Unauthorized);
-
-            var userId = System.Text.Json.JsonDocument.Parse(data["user"]!).RootElement.GetProperty("id").GetUInt64();
-
-            var telegram = await _context.Telegrams.FirstOrDefaultAsync(x => x.TelegramId == userId, cancellationToken);
-
-            if (telegram == null)
-                throw new HttpException("Student not found", StatusCodes.Status404NotFound);
-
-            var userDto = new UserDto()
-            {
-                JwtToken = _jwtService.GenerateAuthorizationToken(telegram.StudentId, false),
-                StudentId = telegram.StudentId,
-                UserName = telegram.Student.Name
-            };
-
-            return StatusCode(StatusCodes.Status200OK, userDto);
-        }
-
-        [HttpPost]
-        [Route("login")]
-        [AllowAnonymous]
-        public async Task<ActionResult<UserDto>> PostLoginAsync([FromBody] LoginDto loginDto, CancellationToken cancellationToken)
+    private static CookieOptions CookieOptions()
+    {
+        return new CookieOptions
         {
-            var user = await _context.WebAuthentications.FirstOrDefaultAsync(x => x.Login == loginDto.Login.ToLower(), cancellationToken);
-
-            if (user == null || !user.VerifyPasswordHash(loginDto.Password))
-                throw new HttpException("Invalid user login or password", StatusCodes.Status400BadRequest);
-
-            var dto = new UserDto()
-            {
-                JwtToken = _jwtService.GenerateAuthorizationToken(user.StudentId, true),
-                StudentId = user.StudentId,
-                UserName = user.Student.Name
-            };
-
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Expires = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc).AddDays(30),
-                Secure = true,
-                SameSite = SameSiteMode.None
-            };
-
-            var refreshToken = _jwtService.GenerateRefreshToken(user.StudentId);
-            Response.Cookies.Append(CookieKey, refreshToken, cookieOptions);
-
-            return StatusCode(StatusCodes.Status200OK, dto);
-        }
-
-        [HttpPost]
-        [Route("refresh")]
-        [AllowAnonymous]
-        public async Task<ActionResult<UserDto>> PostRefreshAsync([FromBody] UserDto userDto, CancellationToken cancellationToken)
-        {
-            var refreshToken = Request.Cookies[CookieKey];
-
-            if (refreshToken == null || !_jwtService.ValidateRefreshToken(refreshToken, userDto.StudentId))
-                throw new HttpException("Invalid refresh token", StatusCodes.Status400BadRequest);
-
-            var student = await _context.Students.FirstOrDefaultAsync(x => x.Id == userDto.StudentId);
-
-            userDto.JwtToken = _jwtService.GenerateAuthorizationToken(userDto.StudentId, true);
-
-            if (student == null)
-                throw new HttpException("Invalid user data", StatusCodes.Status400BadRequest);
-
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Expires = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc).AddDays(30),
-                Secure = true,
-                SameSite = SameSiteMode.None
-            };
-
-            refreshToken = _jwtService.GenerateRefreshToken(userDto.StudentId);
-            Response.Cookies.Append(CookieKey, refreshToken, cookieOptions);
-
-            return StatusCode(StatusCodes.Status200OK, userDto);
-        }
-
-        [HttpGet]
-        [Route("password/{password}")]
-        [AllowAnonymous]
-        public ActionResult<Dictionary<string, string>> GetGeneratePassword([FromRoute] string password)
-        {
-            Dictionary<string, string> passwordData = new();
-
-            using var hmac = new HMACSHA512();
-            passwordData["Salt"] = Convert.ToBase64String(hmac.Key);
-            passwordData["Hash"] = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(password)));
-
-            return passwordData;
-        }
+            HttpOnly = true,
+            Expires = DateTimeOffset.UtcNow.AddDays(30),
+            Secure = true,
+            SameSite = SameSiteMode.None
+        };
     }
 }

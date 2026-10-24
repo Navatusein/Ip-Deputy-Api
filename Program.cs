@@ -1,14 +1,19 @@
+using System.Text;
 using IpDeputyApi.Authentication;
 using IpDeputyApi.Database;
+using IpDeputyApi.Dto;
+using IpDeputyApi.Extensions;
 using IpDeputyApi.Middleware;
 using IpDeputyApi.OpenApi;
-using IpDeputyApi.Service;
+using IpDeputyApi.Options;
+using IpDeputyApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +23,14 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-builder.Services.AddControllers();
+builder.Services.AddOptions<AccessTokenOptions>().BindConfiguration(AccessTokenOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddOptions<RefreshTokenOptions>().BindConfiguration(RefreshTokenOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddOptions<BotOptions>().Bind(builder.Configuration).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddOptions<DatabaseOptions>().BindConfiguration(DatabaseOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddOptions<ScheduleOptions>().BindConfiguration(ScheduleOptions.Section);
+
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = context => context.ToValidationResult());
 
 builder.Services.AddOpenApi(options =>
 {
@@ -27,40 +39,62 @@ builder.Services.AddOpenApi(options =>
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer()
+    .AddScheme<BotAuthenticationSchemeOptions, BotAuthenticationHandler>(BotAuthenticationSchemeOptions.DefaultSchemeName, null);
+
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<AccessTokenOptions>>((options, accessOptions) =>
     {
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["AuthorizeJWT:Issuer"],
-            ValidAudience = builder.Configuration["AuthorizeJWT:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["AuthorizeJWT:Key"]!))
+            ValidIssuer = accessOptions.Value.Issuer,
+            ValidAudience = accessOptions.Value.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(accessOptions.Value.Key)),
+            NameClaimType = "name",
+            ClockSkew = TimeSpan.FromMinutes(1)
         };
-    })
-    .AddScheme<BotAuthenticationSchemeOptions, BotAuthenticationHandler>(
-        BotAuthenticationSchemeOptions.DefaultSchemeName,
-        options =>
-        {
-            options.BotToken = builder.Configuration["BotAuthorizeToken"]!;
-        }
-    );
+    });
 
-builder.Services.AddDbContextPool<IpDeputyDbContext>(options =>
+builder.Services.AddOptions<BotAuthenticationSchemeOptions>(BotAuthenticationSchemeOptions.DefaultSchemeName)
+    .Configure<IOptions<BotOptions>>((options, botOptions) => options.BotToken = botOptions.Value.BotAuthorizeToken);
+
+builder.Services.AddDbContextPool<IpDeputyDbContext>((services, options) =>
 {
-    options.UseLazyLoadingProxies();
-    options.UseNpgsql(builder.Configuration["Database:ConnectionString"]);
+    options.UseNpgsql(services.GetRequiredService<IOptions<DatabaseOptions>>().Value.ConnectionString);
 });
 
+builder.Services.AddRepositories();
+builder.Services.AddAppServices();
 builder.Services.AddSingleton<JwtService>();
-
-builder.Services.AddAutoMapper(typeof(AppMappingService));
 
 var app = builder.Build();
 
 app.UsePathBase("/api");
+
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+
+    if (context.HttpContext.RequestAborted.IsCancellationRequested || response.HasStarted || response.ContentLength > 0 || !string.IsNullOrEmpty(response.ContentType))
+        return;
+
+    var message = response.StatusCode switch
+    {
+        StatusCodes.Status401Unauthorized => "Не авторизовано",
+        StatusCodes.Status403Forbidden => "Недостатньо прав",
+        StatusCodes.Status404NotFound => "Ресурс не знайдено",
+        StatusCodes.Status405MethodNotAllowed => "Метод не підтримується",
+        StatusCodes.Status429TooManyRequests => "Забагато запитів, спробуйте пізніше",
+        _ => "Помилка запиту"
+    };
+
+    await response.WriteAsJsonAsync(new ErrorDto(response.StatusCode, message));
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -72,7 +106,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors(options =>
 {
-    var origins = builder.Configuration.GetSection("Origins").Get<string[]>()!;
+    var origins = app.Configuration.GetSection("Origins").Get<string[]>() ?? [];
 
     options.WithOrigins(origins);
     options.AllowAnyMethod();
@@ -85,7 +119,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
+if (app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value.ApplyMigrationsOnStartup)
     await DatabaseInitializer.InitializeAsync(app.Services);
 
 app.Run();

@@ -1,29 +1,19 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+namespace IpDeputyApi.Dto;
 
-namespace IpDeputyApi.Dtos
+public class ErrorDto
 {
-    public class ErrorDto
+    public string Code { get; set; } = null!;
+    public string Message { get; set; } = null!;
+    public object? Data { get; set; }
+
+    public ErrorDto()
     {
-        public ErrorDto(string message, string code)
-        {
-            Id = Guid.NewGuid().ToString();
-            Message = message;
-            Code = code;
-        }
+    }
 
-        public ErrorDto()
-        {
-            Id = Guid.NewGuid().ToString();
-        }
-
-        public string Id { get; set; } = null!;
-
-        public string Message { get; set; } = null!;
-
-        public string Code { get; set; } = null!;
-
-        public object? Data { get; set; }
+    public ErrorDto(int statusCode, string message, object? data = null)
+    {
+        Code = statusCode.ToString();
+        Message = message;
+        Data = data;
     }
 }
-

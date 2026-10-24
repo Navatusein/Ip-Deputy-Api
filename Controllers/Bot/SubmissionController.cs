@@ -1,65 +1,23 @@
-﻿using AutoMapper;
-using IpDeputyApi.Authentication;
-using IpDeputyApi.Database;
-using IpDeputyApi.Database.Models;
 using IpDeputyApi.Dto.Bot;
-using Microsoft.AspNetCore.Authorization;
+using IpDeputyApi.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Serilog;
-
-using ILogger = Serilog.ILogger;
 
 namespace IpDeputyApi.Controllers.Bot;
 
 [Tags("Bot:Submission Controller")]
 [Route("bot/submission")]
-[ApiController]
-public class SubmissionController : ControllerBase
+public class SubmissionController : BotControllerBase
 {
-    private static ILogger Logger => Log.ForContext<SubmissionController>();
-    private readonly IpDeputyDbContext _context;
-    private readonly IMapper _mapper;
+    private readonly IBotSubmissionService _submissionService;
 
-    public SubmissionController(IpDeputyDbContext context, IMapper mapper)
+    public SubmissionController(IBotSubmissionService submissionService)
     {
-        _context = context;
-        _mapper = mapper;
+        _submissionService = submissionService;
     }
 
-    [HttpGet]
-    [Route("submissions-configs")]
-    [Authorize(AuthenticationSchemes = BotAuthenticationSchemeOptions.DefaultSchemeName)]
-    public async Task<ActionResult<IEnumerable<SubmissionsConfigDataDto>>> GetSubmissionsConfigsAsync(CancellationToken cancellationToken)
+    [HttpGet("submissions-configs")]
+    public async Task<ActionResult<IReadOnlyList<SubmissionsConfigDataDto>>> GetSubmissionsConfigsAsync(CancellationToken cancellationToken)
     {
-        var submissionsConfigs = await _context.SubmissionsConfigs.ToListAsync(cancellationToken);
-
-        var a = submissionsConfigs[0].SubmissionStudents
-                    .OrderBy(x => x.PreferredPosition)
-                    .GroupBy(x => x.StudentId)
-                    .Select(x => x.ToList().OrderBy(x => x.SubmissionWork.Index))
-                    .SelectMany(x => x);
-
-        var dtos = submissionsConfigs.Select(submissionsConfig =>
-        {
-            return new SubmissionsConfigDataDto
-            {
-                Id = submissionsConfig.Id,
-                Name = submissionsConfig.CustomName ?? submissionsConfig.Subject!.ShortName,
-                Type = submissionsConfig.CustomType ?? submissionsConfig.SubjectType!.ShortName,
-                Subgroup = submissionsConfig.Subgroup?.Name,
-                ClearedAt = submissionsConfig.SubmissionStudents.OrderBy(x => x.Id).FirstOrDefault()?.SubmittedAt.ToString() ?? "",
-                Submissions = submissionsConfig.SubmissionStudents
-                    .OrderBy(x => x.PreferredPosition)
-                    .ThenBy(x => x.Id)
-                    .GroupBy(x => x.StudentId)
-                    .Select(x => x.ToList().OrderBy(x => x.SubmissionWork.Index))
-                    .SelectMany(x => x)
-                    .Select(x => new SubmissionDto() { Name = x.SubmissionWork.Name, Student = $"{x.Student.Surname} {x.Student.Name}" })
-            };
-        })
-        .ToList();
-
-        return StatusCode(StatusCodes.Status200OK, dtos);
+        return Ok(await _submissionService.GetSubmissionsConfigsAsync(cancellationToken));
     }
 }

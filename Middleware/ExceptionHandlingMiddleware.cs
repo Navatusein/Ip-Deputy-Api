@@ -1,69 +1,73 @@
-﻿using IpDeputyApi.Dtos;
+using IpDeputyApi.Dto;
 using IpDeputyApi.Exceptions;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Serilog;
-using System.Net;
 
-namespace IpDeputyApi.Middleware
+namespace IpDeputyApi.Middleware;
+
+public class ExceptionHandlingMiddleware
 {
-    public class ExceptionHandlingMiddleware
+    private const int ClientClosedRequest = 499;
+
+    private static Serilog.ILogger Logger => Log.ForContext<ExceptionHandlingMiddleware>();
+    private readonly RequestDelegate _next;
+
+    public ExceptionHandlingMiddleware(RequestDelegate next)
     {
-        private static Serilog.ILogger Logger => Log.ForContext<ExceptionHandlingMiddleware>();
-        private readonly RequestDelegate _next;
+        _next = next;
+    }
 
-        public ExceptionHandlingMiddleware(RequestDelegate next)
+    public async Task Invoke(HttpContext context)
+    {
+        try
         {
-            _next = next;
+            await _next(context);
         }
-
-        public async Task Invoke(HttpContext context)
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            try
-            {
-                await _next(context);
-            }
-            catch (Exception ex)
-            {
-                await HandleExceptionAsync(context, ex);
-            }
+            if (!context.Response.HasStarted)
+                context.Response.StatusCode = ClientClosedRequest;
         }
-
-        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        catch (Exception exception)
         {
-            context.Response.ContentType = "application/json";
-
-            var response = context.Response;
-
-            var errorDto = new ErrorDto();
-
-            Logger.Error(exception, "Handle Exception");
-
-            switch (exception)
+            if (context.Response.HasStarted)
             {
-                case ApplicationException:
-                    errorDto.Code = StatusCodes.Status400BadRequest.ToString();
-                    errorDto.Message = "Application Exception Occured, please retry after sometime";
-                    response.StatusCode = StatusCodes.Status400BadRequest;
-                    break;
-                case NotImplementedException:
-                    errorDto.Code = StatusCodes.Status403Forbidden.ToString();
-                    errorDto.Message = "NotImplementedException";
-                    response.StatusCode = StatusCodes.Status403Forbidden;
-                    break;
-                case HttpException:
-                    var httpException = (HttpException)exception;
-                    errorDto.Code = httpException.StatusCode.ToString();
-                    errorDto.Message = httpException.Message;
-                    errorDto.Data = httpException.Data;
-                    response.StatusCode = httpException.StatusCode;
-                    break;
-                default:
-                    errorDto.Code = StatusCodes.Status500InternalServerError.ToString();
-                    errorDto.Message = "Internal Server Error, Please retry after sometime";
-                    response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    break;
+                Logger.Error(exception, "Unhandled exception after response started");
+                throw;
             }
 
-            await context.Response.WriteAsJsonAsync(errorDto);
+            await HandleExceptionAsync(context, exception);
         }
+    }
+
+    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        var errorDto = exception switch
+        {
+            HttpException httpException => new ErrorDto(httpException.StatusCode, httpException.Message, httpException.ResponseData),
+            DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation } } =>
+                new ErrorDto(StatusCodes.Status409Conflict, "Запис пов'язаний з іншими даними"),
+            DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>
+                new ErrorDto(StatusCodes.Status409Conflict, "Запис з такими даними вже існує"),
+            PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation } =>
+                new ErrorDto(StatusCodes.Status409Conflict, "Запис пов'язаний з іншими даними"),
+            PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } =>
+                new ErrorDto(StatusCodes.Status409Conflict, "Запис з такими даними вже існує"),
+            NpgsqlException and not PostgresException or TimeoutException => new ErrorDto(StatusCodes.Status503ServiceUnavailable, "База даних тимчасово недоступна"),
+            BadHttpRequestException badRequest => new ErrorDto(badRequest.StatusCode, "Некоректний запит"),
+            _ => new ErrorDto(StatusCodes.Status500InternalServerError, "Внутрішня помилка сервера")
+        };
+
+        var statusCode = int.Parse(errorDto.Code);
+
+        if (statusCode >= StatusCodes.Status500InternalServerError)
+            Logger.Error(exception, "Unhandled exception");
+        else
+            Logger.Information("Request failed with {StatusCode}: {Message}", statusCode, exception.Message);
+
+        context.Response.Clear();
+        context.Response.StatusCode = statusCode;
+        await context.Response.WriteAsJsonAsync(errorDto);
     }
 }

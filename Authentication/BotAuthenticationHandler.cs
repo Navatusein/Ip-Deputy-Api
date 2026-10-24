@@ -1,33 +1,36 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Options;
-using System.Security.Claims;
+﻿using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 
-namespace IpDeputyApi.Authentication
+namespace IpDeputyApi.Authentication;
+
+public class BotAuthenticationHandler : AuthenticationHandler<BotAuthenticationSchemeOptions>
 {
-    public class BotAuthenticationHandler : AuthenticationHandler<BotAuthenticationSchemeOptions>
+    public BotAuthenticationHandler(IOptionsMonitor<BotAuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder)
     {
-        public BotAuthenticationHandler(IOptionsMonitor<BotAuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
-            : base(options, logger, encoder) { }
+    }
 
-        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-        {
-            if (!Request.Headers.ContainsKey(BotAuthenticationSchemeOptions.TokenHeaderName))
-                return Task.FromResult(AuthenticateResult.Fail($"Missing Header For Token: {BotAuthenticationSchemeOptions.TokenHeaderName}"));
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (string.IsNullOrEmpty(Options.BotToken))
+            return Task.FromResult(AuthenticateResult.Fail("Bot token is not configured"));
 
-            var token = Request.Headers[BotAuthenticationSchemeOptions.TokenHeaderName];
+        if (!Request.Headers.TryGetValue(BotAuthenticationSchemeOptions.TokenHeaderName, out var header))
+            return Task.FromResult(AuthenticateResult.NoResult());
 
-            if (token != Options.BotToken)
-                return Task.FromResult(AuthenticateResult.Fail("Incorrect Bot Token"));
+        var provided = Encoding.UTF8.GetBytes(header.ToString());
+        var expected = Encoding.UTF8.GetBytes(Options.BotToken);
 
-            var claims = new[] {
-                new Claim(ClaimTypes.NameIdentifier, "Bot"),
-            };
+        if (!CryptographicOperations.FixedTimeEquals(provided, expected))
+            return Task.FromResult(AuthenticateResult.Fail("Incorrect bot token"));
 
-            var id = new ClaimsIdentity(claims, Scheme.Name);
-            var principal = new ClaimsPrincipal(id);
-            var ticket = new AuthenticationTicket(principal, Scheme.Name);
-            return Task.FromResult(AuthenticateResult.Success(ticket));
-        }
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "Bot")], Scheme.Name);
+        var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name);
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

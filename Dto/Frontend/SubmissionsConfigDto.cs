@@ -1,14 +1,20 @@
-﻿namespace IpDeputyApi.Dto.Frontend
+using System.ComponentModel.DataAnnotations;
+using IpDeputyApi.Exceptions;
+
+namespace IpDeputyApi.Dto.Frontend;
+
+public class SubmissionsConfigDto : IHasId
 {
-    public class SubmissionsConfigDto
-    {
-        public int Id { get; set; }
-        public int? SubgroupId { get; set; }
-        public int? SubjectId { get; set; }
-        public int? SubjectTypeId { get; set; }
-        public string? CustomType { get; set; }
-        public string? CustomName { get; set; }
-        public IEnumerable<SubmissionWorkDto> SubmissionWorks { get; set; } = new List<SubmissionWorkDto>();
-        public IEnumerable<SubmissionStudentDto> SubmissionStudents { get; set; } = new List<SubmissionStudentDto>();
-    }
+    public int Id { get; set; }
+    public int? SubgroupId { get; set; }
+    public int? SubjectId { get; set; }
+    public int? SubjectTypeId { get; set; }
+
+    [MaxLength(128, ErrorMessage = ValidationMessages.TooLong)]
+    public string? CustomType { get; set; }
+
+    [MaxLength(256, ErrorMessage = ValidationMessages.TooLong)]
+    public string? CustomName { get; set; }
+
+    public List<SubmissionWorkDto> SubmissionWorks { get; set; } = new();
 }

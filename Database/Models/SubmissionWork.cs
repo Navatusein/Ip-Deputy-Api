@@ -1,13 +1,12 @@
-﻿namespace IpDeputyApi.Database.Models
-{
-    public class SubmissionWork
-    {
-        public int Id { get; set; }
-        public int SubmissionsConfigId { get; set; }
-        public string Name { get; set; } = null!;
-        public int Index { get; set; }
+namespace IpDeputyApi.Database.Models;
 
-        public virtual SubmissionsConfig SubmissionsConfig { get; set; } = null!;
-        public virtual IEnumerable<SubmissionStudent> SubmissionStudents { get; } = new List<SubmissionStudent>();
-    }
+public class SubmissionWork : IEntity
+{
+    public int Id { get; set; }
+    public int SubmissionsConfigId { get; set; }
+    public string Name { get; set; } = null!;
+    public int Index { get; set; }
+
+    public SubmissionsConfig SubmissionsConfig { get; set; } = null!;
+    public ICollection<SubmissionStudent> SubmissionStudents { get; set; } = new List<SubmissionStudent>();
 }

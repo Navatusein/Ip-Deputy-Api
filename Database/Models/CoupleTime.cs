@@ -1,17 +1,16 @@
-﻿namespace IpDeputyApi.Database.Models
+namespace IpDeputyApi.Database.Models;
+
+public class CoupleTime : IEntity
 {
-    public class CoupleTime
+    public int Id { get; set; }
+    public int Index { get; set; }
+    public TimeOnly TimeStart { get; set; }
+    public TimeOnly TimeEnd { get; set; }
+
+    public ICollection<Couple> Couples { get; set; } = new List<Couple>();
+
+    public string GetTimeFormatted()
     {
-        public int Id { get; set; }
-        public int Index { get; set; }
-        public TimeOnly TimeStart { get; set; }
-        public TimeOnly TimeEnd { get; set; }
-
-        public virtual IEnumerable<Couple> Couples { get; } = new List<Couple>();
-
-        public string GetTimeFormatted()
-        {
-            return $"{TimeStart.ToString("HH:mm")} - {TimeEnd.ToString("HH:mm")}";
-        }
+        return $"{TimeStart:HH:mm} - {TimeEnd:HH:mm}";
     }
 }
