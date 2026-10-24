@@ -22,6 +22,9 @@ public class CoupleService : CrudServiceBase<Couple, CoupleDto, CoupleFilter>, I
         .Add("endDate", x => x.EndDate)
         .Add("isRolling", x => x.IsRolling)
         .Add("cabinet", x => x.Cabinet)
+        .Add("additionalInformation", x => x.AdditionalInformation)
+        .Add("link", x => x.Link)
+        .Add("weeksCount", x => x.EndDate!.Value.DayNumber - x.StartDate!.Value.DayNumber)
         .Default(query => query.OrderBy(x => x.DayOfWeekId).ThenBy(x => x.CoupleTime.Index).ThenBy(x => x.StartDate));
 
     private static readonly IReadOnlyList<Expression<Func<Couple, string?>>> Search =

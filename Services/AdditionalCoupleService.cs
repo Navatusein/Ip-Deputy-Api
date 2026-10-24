@@ -23,6 +23,9 @@ public class AdditionalCoupleService : CrudServiceBase<AdditionalCouple, Additio
         .Add("coupleTimeId", x => x.CoupleTimeId)
         .Add("time", x => x.Time)
         .Add("cabinet", x => x.Cabinet)
+        .Add("dayOfWeekId", x => x.DayOfWeekId)
+        .Add("additionalInformation", x => x.AdditionalInformation)
+        .Add("link", x => x.Link)
         .Default(query => query.OrderByDescending(x => x.Date).ThenBy(x => x.CoupleTimeId).ThenBy(x => x.Time));
 
     private static readonly IReadOnlyList<Expression<Func<AdditionalCouple, string?>>> Search =

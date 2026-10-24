@@ -17,6 +17,8 @@ public class TeacherService : CrudServiceBase<Teacher, TeacherDto, PageRequest>,
         .Add("patronymic", x => x.Patronymic)
         .Add("email", x => x.Email)
         .Add("telegramNickname", x => x.TelegramNickname)
+        .Add("contactPhone", x => x.ContactPhone)
+        .Add("fitEmail", x => x.FitEmail)
         .Default(query => query.OrderBy(x => x.Surname).ThenBy(x => x.Name));
 
     private static readonly IReadOnlyList<Expression<Func<Teacher, string?>>> Search =

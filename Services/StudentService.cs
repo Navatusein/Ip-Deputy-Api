@@ -20,6 +20,9 @@ public class StudentService : CrudServiceBase<Student, StudentDto, StudentFilter
         .Add("birthday", x => x.Birthday)
         .Add("email", x => x.Email)
         .Add("telegramNickname", x => x.TelegramNickname)
+        .Add("telegramPhone", x => x.TelegramPhone)
+        .Add("contactPhone", x => x.ContactPhone)
+        .Add("fitEmail", x => x.FitEmail)
         .Default(query => query.OrderBy(x => x.Index));
 
     private static readonly IReadOnlyList<Expression<Func<Student, string?>>> Search =
