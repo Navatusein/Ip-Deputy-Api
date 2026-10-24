@@ -1,14 +1,18 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using IpDeputyApi.Authentication;
+using IpDeputyApi.Authorization;
+using IpDeputyApi.Controllers.Frontend;
 using IpDeputyApi.Database;
 using IpDeputyApi.Dto;
 using IpDeputyApi.Extensions;
 using IpDeputyApi.Middleware;
 using IpDeputyApi.OpenApi;
 using IpDeputyApi.Options;
-using IpDeputyApi.Services;
+using IpDeputyApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -28,6 +32,30 @@ builder.Services.AddOptions<RefreshTokenOptions>().BindConfiguration(RefreshToke
 builder.Services.AddOptions<BotOptions>().Bind(builder.Configuration).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<DatabaseOptions>().BindConfiguration(DatabaseOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<ScheduleOptions>().BindConfiguration(ScheduleOptions.Section);
+builder.Services.AddOptions<InitialAdminOptions>().BindConfiguration(InitialAdminOptions.Section);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(AuthenticationController.LoginRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
+
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = context => context.ToValidationResult());
@@ -55,8 +83,18 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidIssuer = accessOptions.Value.Issuer,
             ValidAudience = accessOptions.Value.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(accessOptions.Value.Key)),
-            NameClaimType = "name",
+            NameClaimType = AppClaims.Name,
             ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var validator = context.HttpContext.RequestServices.GetRequiredService<IUserSessionValidator>();
+
+                if (!await validator.ValidateAsync(context.Principal!, context.HttpContext.RequestAborted))
+                    context.Fail("Session is no longer valid");
+            }
         };
     });
 
@@ -70,9 +108,11 @@ builder.Services.AddDbContextPool<IpDeputyDbContext>((services, options) =>
 
 builder.Services.AddRepositories();
 builder.Services.AddAppServices();
-builder.Services.AddSingleton<JwtService>();
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue("ReverseProxy:TrustForwardedHeaders", true))
+    app.UseForwardedHeaders();
 
 app.UsePathBase("/api");
 
@@ -116,6 +156,7 @@ app.UseCors(options =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 

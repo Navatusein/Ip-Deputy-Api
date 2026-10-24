@@ -22,7 +22,7 @@ namespace IpDeputyApi.Database
         public DbSet<SubmissionWork> SubmissionWorks { get; set; } = null!;
         public DbSet<Teacher> Teachers { get; set; } = null!;
         public DbSet<Telegram> Telegrams { get; set; } = null!;
-        public DbSet<WebAuthentication> WebAuthentications { get; set; } = null!;
+        public DbSet<User> Users { get; set; } = null!;
 
         public IpDeputyDbContext(DbContextOptions<IpDeputyDbContext> options) : base(options)
         {
@@ -30,6 +30,8 @@ namespace IpDeputyApi.Database
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(IpDeputyDbContext).Assembly);
+
             modelBuilder.Entity<CoupleTime>().HasData(
                 new CoupleTime { Id = 1, Index = 1, TimeStart = new TimeOnly(9, 0), TimeEnd = new TimeOnly(10, 20) },
                 new CoupleTime { Id = 2, Index = 2, TimeStart = new TimeOnly(10, 30), TimeEnd = new TimeOnly(11, 50) },

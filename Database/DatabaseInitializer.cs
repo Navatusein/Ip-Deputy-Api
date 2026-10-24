@@ -1,8 +1,14 @@
 using System.Reflection;
+using IpDeputyApi.Authorization;
 using IpDeputyApi.Database.Migrations;
+using IpDeputyApi.Database.Models;
+using IpDeputyApi.Options;
+using IpDeputyApi.Services;
+using IpDeputyApi.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Options;
 
 namespace IpDeputyApi.Database;
 
@@ -17,6 +23,37 @@ public static class DatabaseInitializer
 
         await BaselineExistingDatabaseAsync(context, cancellationToken);
         await context.Database.MigrateAsync(cancellationToken);
+        await SeedInitialAdminAsync(scope.ServiceProvider, context, cancellationToken);
+    }
+
+    private static async Task SeedInitialAdminAsync(IServiceProvider services, IpDeputyDbContext context, CancellationToken cancellationToken)
+    {
+        var options = services.GetRequiredService<IOptions<InitialAdminOptions>>().Value;
+
+        if (string.IsNullOrWhiteSpace(options.Login) || string.IsNullOrWhiteSpace(options.Password))
+            return;
+
+        if (await context.Users.AnyAsync(cancellationToken))
+            return;
+
+        var passwordService = services.GetRequiredService<IPasswordService>();
+        var clock = services.GetRequiredService<IAppClock>();
+
+        var user = new User
+        {
+            Login = UserService.NormalizeLogin(options.Login),
+            DisplayName = options.Login.Trim(),
+            Permissions = Permissions.AllKeys.ToList(),
+            IsActive = true,
+            CreatedAt = clock.UtcNow
+        };
+
+        user.PasswordHash = passwordService.Hash(user, options.Password);
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync(cancellationToken);
+
+        Logger.Warning("Initial administrator {Login} created", user.Login);
     }
 
     private static async Task BaselineExistingDatabaseAsync(IpDeputyDbContext context, CancellationToken cancellationToken)

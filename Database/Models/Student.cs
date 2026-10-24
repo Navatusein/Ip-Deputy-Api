@@ -17,5 +17,4 @@ public class Student : IEntity
 
     public Subgroup? Subgroup { get; set; }
     public Telegram? Telegram { get; set; }
-    public WebAuthentication? WebAuthentication { get; set; }
 }

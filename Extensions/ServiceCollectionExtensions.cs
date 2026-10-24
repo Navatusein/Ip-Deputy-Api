@@ -1,6 +1,7 @@
 using IpDeputyApi.Repositories;
 using IpDeputyApi.Repositories.Interfaces;
 using IpDeputyApi.Services;
+using IpDeputyApi.Services.Auth;
 using IpDeputyApi.Services.Bot;
 using IpDeputyApi.Services.Interfaces;
 
@@ -37,6 +38,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISubmissionsConfigService, SubmissionsConfigService>();
         services.AddScoped<ISubmissionStudentService, SubmissionStudentService>();
         services.AddScoped<ILookupService, LookupService>();
+        services.AddScoped<IUserService, UserService>();
+
+        services.AddSingleton<IPasswordService, PasswordService>();
+        services.AddSingleton<ITokenService, TokenService>();
+        services.AddScoped<IUserSessionValidator, UserSessionValidator>();
+        services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<IAuthService, AuthService>();
 
         services.AddScoped<IBotScheduleService, BotScheduleService>();
         services.AddScoped<IBotInformationService, BotInformationService>();

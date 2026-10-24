@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace IpDeputyApi.Services;
+namespace IpDeputyApi.Services.Auth;
 
 public static class LegacyPasswordHash
 {
