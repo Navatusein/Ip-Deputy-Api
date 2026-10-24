@@ -21,7 +21,7 @@ Built with .NET 10, ASP.NET Core, EF Core 10 and PostgreSQL. Mapping is done wit
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
-dotnet user-secrets set "Database:ConnectionString" "Host=localhost;Port=5432;Database=ip_deputy;Username=postgres;Password=postgres"
+export DATABASE_CONNECTION_STRING="Host=localhost;Port=5432;Database=ip_deputy;Username=postgres;Password=postgres"
 dotnet run
 dotnet test IpDeputyApi.sln
 ```
@@ -39,16 +39,20 @@ Migrations are applied on startup. Upgrading a database created by the pre-migra
 
 ## Configuration
 
-| Key (env var) | Description |
+All settings can come from flat environment variables. The full list is in [MIGRATION.md](MIGRATION.md#3-configuration).
+
+| Env var | Description |
 |---|---|
-| `Database__ConnectionString` | PostgreSQL connection string |
-| `AuthorizeJWT__Key`, `__Issuer`, `__Audience` | Access token settings; the key must be at least 32 characters |
-| `RefreshJWT__Key`, `__Issuer`, `__Audience` | Refresh token settings; use a different key |
-| `BotAuthorizeToken` | Shared secret for the `X-BOT-TOKEN` header |
-| `BotToken` | Telegram bot token used to validate Web App `initData` |
-| `InitialAdmin__Login`, `InitialAdmin__Password` | First administrator, created only when there are no users |
-| `Origins__0`, `Origins__1`, ... | Allowed CORS origins |
-| `Schedule__TimeZone` | Defaults to `Europe/Kyiv` |
+| `DATABASE_CONNECTION_STRING` or `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_NAME` / `DATABASE_USER` / `DATABASE_PASSWORD` | PostgreSQL connection |
+| `JWT_ACCESS_KEY`, `JWT_REFRESH_KEY` | Token signing keys; at least 32 characters each, and they must differ |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | Token issuer and audience |
+| `BOT_API_TOKEN` | Shared secret for the `X-BOT-TOKEN` header |
+| `BOT_TOKEN` | Telegram bot token used to validate Web App `initData` |
+| `CORS_ORIGINS` | Comma-separated allowed origins |
+| `TIME_ZONE` | Defaults to `Europe/Kyiv` |
+| `INITIAL_ADMIN_LOGIN`, `INITIAL_ADMIN_PASSWORD` | First administrator, created only when there are no users |
+
+The `appsettings.json` keys and the standard `Section__Key` variables still work; flat variables take precedence.
 
 ## Permissions
 

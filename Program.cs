@@ -21,6 +21,8 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddAppEnvironmentVariables();
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .CreateBootstrapLogger();
@@ -146,7 +148,9 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors(options =>
 {
-    var origins = app.Configuration.GetSection("Origins").Get<string[]>() ?? [];
+    var origins = app.Configuration["CorsOrigins"]?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+        ?? app.Configuration.GetSection("Origins").Get<string[]>()
+        ?? [];
 
     options.WithOrigins(origins);
     options.AllowAnyMethod();

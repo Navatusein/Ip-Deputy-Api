@@ -7,7 +7,8 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<IpDeputyDb
 {
     public IpDeputyDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("Database__ConnectionString")
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING")
+            ?? Environment.GetEnvironmentVariable("Database__ConnectionString")
             ?? "Host=localhost;Port=5432;Database=ip_deputy;Username=postgres;Password=postgres";
 
         var options = new DbContextOptionsBuilder<IpDeputyDbContext>()

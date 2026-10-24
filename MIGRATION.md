@@ -54,18 +54,27 @@ Duplicate logins collapse into one user (the oldest row wins). Duplicate Telegra
 
 ## 3. Configuration
 
-| Key (env var) | Required | Notes |
-|---|---|---|
-| `Database:ConnectionString` (`Database__ConnectionString`) | yes | Npgsql format: `Host=...;Port=5432;Database=...;Username=...;Password=...` |
-| `Database:ApplyMigrationsOnStartup` | no | default `true`; set `false` to apply migrations manually |
-| `AuthorizeJWT:Key`, `:Issuer`, `:Audience` | yes | key at least 32 characters |
-| `RefreshJWT:Key`, `:Issuer`, `:Audience` | yes | key at least 32 characters, different from the access key |
-| `BotAuthorizeToken` | yes | value of `X-BOT-TOKEN`; the API refuses to start when it is empty |
-| `BotToken` | yes | Telegram bot token, used to validate WebApp `initData` |
-| `InitialAdmin:Login`, `InitialAdmin:Password` | no | only used when the `Users` table is empty |
-| `Origins` | yes | CORS origins of the frontend |
-| `Schedule:TimeZone` | no | default `Europe/Kyiv` |
-| `ReverseProxy:TrustForwardedHeaders` | no | default `true`; uses `X-Forwarded-For` for login rate limiting |
+Every setting can be set with a flat environment variable. The standard ASP.NET form (`Database__ConnectionString`) and `appsettings.json` also work; the flat variables win.
+
+| Env var | Config key | Required | Notes |
+|---|---|---|---|
+| `DATABASE_CONNECTION_STRING` | `Database:ConnectionString` | yes* | Npgsql format: `Host=...;Port=5432;Database=...;Username=...;Password=...` |
+| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD` | `Database:ConnectionString` | yes* | used to build the connection string when `DATABASE_CONNECTION_STRING` is not set |
+| `DATABASE_APPLY_MIGRATIONS` | `Database:ApplyMigrationsOnStartup` | no | default `true`; set `false` to apply migrations manually |
+| `JWT_ACCESS_KEY` | `AuthorizeJWT:Key` | yes | at least 32 characters |
+| `JWT_REFRESH_KEY` | `RefreshJWT:Key` | yes | at least 32 characters, different from the access key |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | `AuthorizeJWT:Issuer/Audience`, `RefreshJWT:Issuer/Audience` | yes | the same values are used for both tokens |
+| `JWT_ACCESS_LIFETIME_MINUTES`, `JWT_REFRESH_LIFETIME_DAYS` | `AuthorizeJWT:LifetimeMinutes`, `RefreshJWT:LifetimeDays` | no | defaults `60` and `30` |
+| `BOT_API_TOKEN` | `BotAuthorizeToken` | yes | value of `X-BOT-TOKEN`; the API refuses to start when it is empty |
+| `BOT_TOKEN` | `BotToken` | yes | Telegram bot token, used to validate WebApp `initData` |
+| `INIT_DATA_LIFETIME_HOURS` | `InitDataLifetimeHours` | no | default `24` |
+| `CORS_ORIGINS` | `Origins` | yes | comma-separated frontend origins |
+| `TIME_ZONE` | `Schedule:TimeZone` | no | default `Europe/Kyiv` |
+| `INITIAL_ADMIN_LOGIN`, `INITIAL_ADMIN_PASSWORD` | `InitialAdmin:Login/Password` | no | only used when the `Users` table is empty |
+| `TRUST_FORWARDED_HEADERS` | `ReverseProxy:TrustForwardedHeaders` | no | default `true`; uses `X-Forwarded-For` for login rate limiting |
+| `LOG_LEVEL` | `Serilog:MinimumLevel:Default` | no | default `Information` |
+
+\* either the full connection string or its parts.
 
 `Database:Provider` and `Database:Version` are no longer used.
 
@@ -73,7 +82,7 @@ Duplicate logins collapse into one user (the oldest row wins). Duplicate Telegra
 
 Automatic (default): deploy the new image with the configuration above. The first start logs `Existing database without migrations history detected, marking ..._InitialCreate as applied` and applies the remaining migrations.
 
-Manual: set `Database__ApplyMigrationsOnStartup=false`, then generate and review an idempotent script:
+Manual: set `DATABASE_APPLY_MIGRATIONS=false`, then generate and review an idempotent script:
 
 ```bash
 dotnet ef migrations script --idempotent -o upgrade.sql
@@ -112,4 +121,4 @@ dotnet tool restore
 dotnet ef migrations add <Name> -o Database/Migrations
 ```
 
-`DesignTimeDbContextFactory` uses `Database__ConnectionString` or a local default, so no database is needed to add a migration.
+`DesignTimeDbContextFactory` uses `DATABASE_CONNECTION_STRING` (or `Database__ConnectionString`) or a local default, so no database is needed to add a migration.
