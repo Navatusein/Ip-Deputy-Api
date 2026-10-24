@@ -1,4 +1,4 @@
-﻿using IpDeputyApi.Database.Models;
+using IpDeputyApi.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
 using DayOfWeek = IpDeputyApi.Database.Models.DayOfWeek;
@@ -26,7 +26,6 @@ namespace IpDeputyApi.Database
 
         public IpDeputyDbContext(DbContextOptions<IpDeputyDbContext> options) : base(options)
         {
-            Database.EnsureCreated();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -85,4 +85,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
+    await DatabaseInitializer.InitializeAsync(app.Services);
+
 app.Run();
