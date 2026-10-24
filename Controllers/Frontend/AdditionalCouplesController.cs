@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using Humanizer;
 using IpDeputyApi.Database;
 using IpDeputyApi.Database.Models;
 using IpDeputyApi.Dto.Frontend;

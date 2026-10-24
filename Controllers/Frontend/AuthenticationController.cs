@@ -8,8 +8,6 @@ using IpDeputyApi.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
-using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web;
@@ -67,9 +65,9 @@ namespace IpDeputyApi.Controllers.Frontend
             if (data["hash"] != hexSignature)
                 throw new HttpException("Not authorized student", StatusCodes.Status401Unauthorized);
 
-            var user = JsonConvert.DeserializeObject<Dictionary<string, string>>(data["user"]!);
+            var userId = System.Text.Json.JsonDocument.Parse(data["user"]!).RootElement.GetProperty("id").GetUInt64();
 
-            var telegram = await _context.Telegrams.FirstOrDefaultAsync(x => x.TelegramId == ulong.Parse(user!["id"]), cancellationToken);
+            var telegram = await _context.Telegrams.FirstOrDefaultAsync(x => x.TelegramId == userId, cancellationToken);
 
             if (telegram == null)
                 throw new HttpException("Student not found", StatusCodes.Status404NotFound);

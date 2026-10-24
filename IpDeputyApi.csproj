@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
@@ -10,32 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Service\AppMapping\**" />
-    <Content Remove="Service\AppMapping\**" />
-    <EmbeddedResource Remove="Service\AppMapping\**" />
-    <None Remove="Service\AppMapping\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="AutoMapper" Version="13.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="8.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8">
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.4" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
-    <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.7.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="8.0.2" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.2" />
-    <PackageReference Include="WilderMinds.SwaggerHierarchySupport" Version="1.0.2" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.3" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
   </ItemGroup>
 
 </Project>
